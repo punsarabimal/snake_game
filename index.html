@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Snake Game</title>
+<style>
+  :root {
+    --ui-bg: rgba(0,0,0,0.6);
+    --control-size: 64px;
+    --accent: #4caf50;
+    --danger: #e53935;
+  }
+  html,body {
+    margin:0;
+    padding:0;
+    background:#0b0b0b;
+    color:#fff;
+    font-family:sans-serif;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+  }
+  #game-container {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:#06121a;
+  }
+  canvas {
+    display:block;
+    background:linear-gradient(180deg,#07121a,#06121a);
+    image-rendering:pixelated;
+    width:100%;
+    height:100%;
+  }
+  #topbar, #score {
+    position:absolute;
+    background:var(--ui-bg);
+    padding:8px 12px;
+    border-radius:8px;
+    backdrop-filter:blur(4px);
+    font-size:14px;
+  }
+  #topbar {
+    top:8px;
+    left:8px;
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  #score {
+    top:8px;
+    right:8px;
+  }
+  #mobile-controls {
+    background:#111;
+    border-top:2px solid #333;
+    padding:10px;
+    display:none; /* shown on touch devices */
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+  }
+  .pad {
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap:8px;
+    align-items:center;
+    justify-items:center;
+  }
+  .arrow, .small-btn {
+    width:var(--control-size);
+    height:var(--control-size);
+    background:#222;
+    border:1px solid #555;
+    color:#fff;
+    font-size:24px;
+    border-radius:8px;
+  }
+  .arrow:active, .small-btn:active {
+    background:#333;
+  }
+  #bottom-buttons {
+    display:flex;
+    gap:10px;
+  }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="game"></canvas>
+  <div id="topbar">
+    <label>Speed</label>
+    <input id="speed" type="range" min="1" max="20" value="8"/>
+    <span id="speedVal">8</span>
+  </div>
+  <div id="score">Score: <span id="scoreVal">0</span></div>
+</div>
+
+<div id="mobile-controls">
+  <div class="pad">
+    <div></div>
+    <button class="arrow" data-dir="0,-1">▲</button>
+    <div></div>
+    <button class="arrow" data-dir="-1,0">◀</button>
+    <div></div>
+    <button class="arrow" data-dir="1,0">▶</button>
+    <div></div>
+    <button class="arrow" data-dir="0,1">▼</button>
+    <div></div>
+  </div>
+  <div id="bottom-buttons">
+    <button id="btn-pause" class="small-btn">⏯</button>
+    <button id="btn-restart" class="small-btn">⟲</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const cvs = document.getElementById('game');
+  const ctx = cvs.getContext('2d');
+  const speedInput = document.getElementById('speed');
+  const speedVal = document.getElementById('speedVal');
+  const scoreEl = document.getElementById('scoreVal');
+  const mobileControls = document.getElementById('mobile-controls');
+  const btnPause = document.getElementById('btn-pause');
+  const btnRestart = document.getElementById('btn-restart');
+  const arrows = mobileControls.querySelectorAll('.arrow');
+  let isTouch = 'ontouchstart' in window;
+
+  let cellSize = 20, cols, rows;
+  let snake = [];
+  let dir = {x:1,y:0}, nextDir = {x:1,y:0};
+  let food = null;
+  let score = 0;
+  let paused = false, gameOver = false;
+  let movesPerSecond = +speedInput.value, acc=0, moveInterval=1000/movesPerSecond;
+  let lastTime = 0;
+
+  function resize(){
+    let h = window.innerHeight;
+    if(isTouch) h -= mobileControls.offsetHeight;
+    cvs.width = window.innerWidth;
+    cvs.height = h;
+    cols = Math.floor(cvs.width/cellSize);
+    rows = Math.floor(cvs.height/cellSize);
+  }
+  function reset(){
+    snake = [];
+    let startX = Math.floor(cols/2);
+    let startY = Math.floor(rows/2);
+    for(let i=4;i>0;i--) snake.push({x:startX-i,y:startY});
+    dir={x:1,y:0}; nextDir={x:1,y:0};
+    placeFood();
+    score=0; paused=false; gameOver=false;
+    updateScore();
+  }
+  function placeFood(){
+    while(true){
+      let fx=Math.floor(Math.random()*cols), fy=Math.floor(Math.random()*rows);
+      if(!snake.some(s=>s.x===fx&&s.y===fy)){ food={x:fx,y:fy}; return; }
+    }
+  }
+  function setDir(x,y){
+    if(snake.length>1 && x===-dir.x && y===-dir.y) return;
+    nextDir={x,y};
+  }
+  function step(){
+    if(paused||gameOver) return;
+    dir=nextDir;
+    let head=snake[snake.length-1];
+    let nx=head.x+dir.x, ny=head.y+dir.y;
+    if(nx<0||ny<0||nx>=cols||ny>=rows||snake.some(s=>s.x===nx&&s.y===ny)){
+      gameOver=true; return;
+    }
+    snake.push({x:nx,y:ny});
+    if(nx===food.x&&ny===food.y){
+      score++; updateScore(); placeFood();
+    } else snake.shift();
+  }
+  function draw(){
+    ctx.fillStyle="#06121a";
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle="#ff5252";
+    ctx.fillRect(food.x*cellSize,food.y*cellSize,cellSize,cellSize);
+    ctx.fillStyle="#a6ff97";
+    snake.forEach(s=>ctx.fillRect(s.x*cellSize,s.y*cellSize,cellSize,cellSize));
+  }
+  function loop(t){
+    requestAnimationFrame(loop);
+    let dt=t-lastTime; lastTime=t; acc+=dt;
+    moveInterval=1000/movesPerSecond;
+    while(acc>=moveInterval){ step(); acc-=moveInterval; }
+    draw();
+  }
+  function updateScore(){ scoreEl.textContent=score; }
+  function togglePause(){ if(!gameOver) paused=!paused; }
+  speedInput.oninput = ()=>{ movesPerSecond=+speedInput.value; speedVal.textContent=movesPerSecond; };
+
+  arrows.forEach(b=>{
+    b.addEventListener('click',()=> {
+      let [x,y]=b.dataset.dir.split(',').map(Number);
+      setDir(x,y);
+    });
+  });
+  btnPause.onclick=togglePause;
+  btnRestart.onclick=reset;
+
+  window.addEventListener('keydown',e=>{
+    if(e.key==='ArrowUp') setDir(0,-1);
+    if(e.key==='ArrowDown') setDir(0,1);
+    if(e.key==='ArrowLeft') setDir(-1,0);
+    if(e.key==='ArrowRight') setDir(1,0);
+    if(e.key==='Escape') togglePause();
+    if(e.key==='Enter') reset();
+  });
+  window.addEventListener('resize',resize);
+
+  if(isTouch) mobileControls.style.display="flex";
+  resize(); reset(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
