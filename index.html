@@ -41,6 +41,18 @@
     width:100%; height:100%;
   }
 
+  /* TOP BAR for PC */
+  #top-bar {
+    display:flex; justify-content:flex-end; align-items:center;
+    background:var(--ui-bg); padding:8px 16px;
+    gap:12px; font-size:16px;
+  }
+  #top-bar .small-btn {
+    width:32px; height:32px; font-size:16px;
+    background:#222; border:1px solid #555; color:#fff; border-radius:6px;
+  }
+
+  /* MOBILE CONTROLS */
   #mobile-controls {
     background:#111; border-top:2px solid #333; padding:12px;
     display:none; flex-direction:column; align-items:center; gap:12px;
@@ -57,6 +69,7 @@
   .left-buttons { display:flex; gap:10px; }
   .score-box { background:var(--ui-bg); padding:6px 12px; border-radius:6px; font-size:16px; }
 
+  /* OVERLAYS */
   #message, #menu-overlay, #help-overlay {
     position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
     text-align:center; font-size:18px; color:var(--text); background:var(--ui-bg);
@@ -76,6 +89,12 @@
 </style>
 </head>
 <body>
+<!-- PC TOP BAR -->
+<div id="top-bar">
+  <div class="score-box">Score: <span id="scoreValPC">0</span></div>
+  <button id="btn-help-pc" class="small-btn">?</button>
+</div>
+
 <div id="game-container">
   <canvas id="game"></canvas>
   <div id="message">
@@ -133,7 +152,7 @@
     <div class="left-buttons">
       <button id="btn-pause" class="small-btn">⏯</button>
       <button id="btn-restart" class="small-btn">⟲</button>
-      <button id="btn-help" class="small-btn">?</button>
+      <button id="btn-help-mobile" class="small-btn">?</button>
     </div>
     <div class="score-box">
       Score: <span id="scoreValMobile">0</span>
@@ -145,12 +164,14 @@
 (function(){
   const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
   const mobileControls=document.getElementById('mobile-controls');
-  const arrows=mobileControls.querySelectorAll('.arrow');
   const msgEl=document.getElementById('message'), msgText=document.getElementById('message-text'), msgBtns=document.getElementById('message-buttons');
   const btnPause=document.getElementById('btn-pause'), btnRestart=document.getElementById('btn-restart');
   const btnMenu=document.getElementById('btn-menu'), menuOverlay=document.getElementById('menu-overlay');
   const btnWrap=document.getElementById('btn-wrap'), btnTheme=document.getElementById('btn-theme'), btnCloseMenu=document.getElementById('btn-close-menu');
-  const btnHelp=document.getElementById('btn-help'), helpOverlay=document.getElementById('help-overlay'), btnCloseHelp=document.getElementById('btn-close-help');
+  const btnHelpMobile=document.getElementById('btn-help-mobile');
+  const btnHelpPC=document.getElementById('btn-help-pc');
+  const helpOverlay=document.getElementById('help-overlay'), btnCloseHelp=document.getElementById('btn-close-help');
+  const scorePC=document.getElementById('scoreValPC'), scoreMobile=document.getElementById('scoreValMobile');
   const speedInput=document.getElementById('speed'), speedVal=document.getElementById('speedVal');
   let isTouch='ontouchstart' in window;
 
@@ -177,12 +198,9 @@
     snake=[]; 
     let startX=Math.floor(cols/2), startY=Math.floor(rows/2); 
     for(let i=4;i>0;i--) snake.push({x:startX-i,y:startY}); 
-    dir={x:1,y:0}; 
-    nextDir={x:1,y:0};
-    placeFood(); 
-    score=0; paused=false; gameOver=false; waitingMove=true; 
-    startedMoving=false; 
-    updateScore(); 
+    dir={x:1,y:0}; nextDir={x:1,y:0};
+    placeFood(); score=0; paused=false; gameOver=false; waitingMove=true; 
+    startedMoving=false; updateScore(); 
   }
 
   function placeFood(){ 
@@ -194,105 +212,59 @@
 
   function setDir(x,y){ 
     if(waitingMove){ waitingMove=false; }
-    if(!startedMoving){
-      if(x===-1 && y===0) return; // ignore left at start
-    } else {
-      if(snake.length>1 && x===-dir.x && y===-dir.y) return;
-    }
+    if(!startedMoving){ if(x===-1 && y===0) return; }
+    else if(snake.length>1 && x===-dir.x && y===-dir.y) return;
     nextDir={x,y};
   }
 
   function showMessage(text, buttons){ 
-    msgText.textContent=text; 
-    msgBtns.innerHTML=""; 
-    buttons.forEach(b=>{ 
-      let btn=document.createElement("button"); 
-      btn.textContent=b.label; 
-      btn.onclick=b.action; 
-      msgBtns.appendChild(btn); 
-    }); 
+    msgText.textContent=text; msgBtns.innerHTML=""; 
+    buttons.forEach(b=>{ let btn=document.createElement("button"); btn.textContent=b.label; btn.onclick=b.action; msgBtns.appendChild(btn); }); 
     msgEl.style.display="block"; 
   }
   function hideMessage(){ msgEl.style.display="none"; }
 
   function step(){ 
     if(paused||gameOver||waitingStart||waitingMove) return; 
-    dir=nextDir; 
-    startedMoving = true; 
-    let head=snake[snake.length-1]; 
-    let nx=head.x+dir.x, ny=head.y+dir.y;
-    if(wrapMode){ 
-      if(nx<0) nx=cols-1; if(nx>=cols) nx=0; 
-      if(ny<0) ny=rows-1; if(ny>=rows) ny=0; 
-    } else { 
-      if(nx<0||ny<0||nx>=cols||ny>=rows){ 
-        gameOver=true; 
-        showMessage("Game Over!",[{label:"Restart",action:()=>{ reset(); waitingStart=false; gameOver=false; hideMessage(); }}]); 
-        return; 
-      } 
-    }
-    if(snake.some(s=>s.x===nx&&s.y===ny)){ 
-      gameOver=true; 
-      showMessage("Game Over!",[{label:"Restart",action:()=>{ reset(); waitingStart=false; gameOver=false; hideMessage(); }}]); 
-      return; 
-    }
+    dir=nextDir; startedMoving = true; 
+    let head=snake[snake.length-1]; let nx=head.x+dir.x, ny=head.y+dir.y;
+    if(wrapMode){ if(nx<0) nx=cols-1; if(nx>=cols) nx=0; if(ny<0) ny=rows-1; if(ny>=rows) ny=0; }
+    else if(nx<0||ny<0||nx>=cols||ny>=rows){ gameOver=true; showMessage("Game Over!",[{label:"Restart",action:()=>{ reset(); waitingStart=false; gameOver=false; hideMessage(); }}]); return; }
+    if(snake.some(s=>s.x===nx&&s.y===ny)){ gameOver=true; showMessage("Game Over!",[{label:"Restart",action:()=>{ reset(); waitingStart=false; gameOver=false; hideMessage(); }}]); return; }
     snake.push({x:nx,y:ny}); 
-    if(nx===food.x&&ny===food.y){ score++; updateScore(); placeFood(); } 
-    else snake.shift();
+    if(nx===food.x&&ny===food.y){ score++; updateScore(); placeFood(); } else snake.shift();
   }
 
   function draw(){ 
-    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--bg"); 
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-    ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue("--border"); 
-    ctx.lineWidth=2; 
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--bg"); ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue("--border"); ctx.lineWidth=2; 
     ctx.strokeRect(offsetX+0.5,offsetY+0.5,cols*cellSize-1,rows*cellSize-1);
     ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--food"); 
     ctx.fillRect(offsetX+food.x*cellSize, offsetY+food.y*cellSize, cellSize, cellSize);
-    snake.forEach((s,i)=>{ 
-      ctx.fillStyle=(i===snake.length-1)?getComputedStyle(document.body).getPropertyValue("--snake"):getComputedStyle(document.body).getPropertyValue("--snake-body"); 
-      ctx.fillRect(offsetX+s.x*cellSize, offsetY+s.y*cellSize, cellSize, cellSize); 
-    });
+    snake.forEach((s,i)=>{ ctx.fillStyle=(i===snake.length-1)?getComputedStyle(document.body).getPropertyValue("--snake"):getComputedStyle(document.body).getPropertyValue("--snake-body"); ctx.fillRect(offsetX+s.x*cellSize, offsetY+s.y*cellSize, cellSize, cellSize); });
   }
 
-  function loop(t){ 
-    requestAnimationFrame(loop); 
-    let dt=t-lastTime; lastTime=t; acc+=dt; 
-    moveInterval=1000/movesPerSecond; 
-    while(acc>=moveInterval){ step(); acc-=moveInterval; } 
-    draw(); 
-  }
+  function loop(t){ requestAnimationFrame(loop); let dt=t-lastTime; lastTime=t; acc+=dt; moveInterval=1000/movesPerSecond; while(acc>=moveInterval){ step(); acc-=moveInterval; } draw(); }
 
-  function updateScore(){ 
-    let m=document.getElementById("scoreValMobile"); 
-    if(m) m.textContent=score; 
-  }
+  function updateScore(){ scorePC.textContent=score; scoreMobile.textContent=score; }
   function togglePause(){ if(!gameOver && !waitingStart) paused=!paused; }
 
-  // Controls
-  arrows.forEach(b=>b.addEventListener('click',()=>{ let [x,y]=b.dataset.dir.split(',').map(Number); setDir(x,y); }));
+  // Mobile controls
+  mobileControls.querySelectorAll('.arrow').forEach(b=>b.addEventListener('click',()=>{ let [x,y]=b.dataset.dir.split(',').map(Number); setDir(x,y); }));
   btnPause.onclick=togglePause;
-  btnRestart.onclick=()=>{
-    if(!gameOver && !waitingStart){
-      showMessage("Reset game?",[
-        {label:"Yes", action:()=>{ reset(); waitingStart=false; hideMessage(); }},
-        {label:"No", action:()=>{ hideMessage(); }}
-      ]);
-    } else { reset(); waitingStart=false; hideMessage(); }
-  };
+  btnRestart.onclick=()=>{ if(!gameOver && !waitingStart){ showMessage("Reset game?",[{label:"Yes", action:()=>{ reset(); waitingStart=false; hideMessage(); }},{label:"No", action:()=>{ hideMessage(); }}]); } else { reset(); waitingStart=false; hideMessage(); }};
   btnMenu.onclick=()=>{ menuOverlay.style.display="block"; paused=true; };
   btnCloseMenu.onclick=()=>{ menuOverlay.style.display="none"; paused=false; };
 
-  btnHelp.onclick=()=>{ helpOverlay.style.display="block"; paused=true; };
-  btnCloseHelp.onclick=()=>{ helpOverlay.style.display="none"; paused=false; };
+  // Help
+  function openHelp(){ helpOverlay.style.display="block"; paused=true; }
+  function closeHelp(){ helpOverlay.style.display="none"; paused=false; }
+  btnHelpMobile.onclick=openHelp; btnHelpPC.onclick=openHelp; btnCloseHelp.onclick=closeHelp;
 
   // Menu actions
   speedInput.oninput=()=>{ movesPerSecond=+speedInput.value; speedVal.textContent=movesPerSecond; };
   btnWrap.onclick=()=>{ wrapMode=!wrapMode; btnWrap.textContent="Wrap: "+(wrapMode?"ON":"OFF"); };
-  btnTheme.onclick=()=>{
-    document.body.classList.toggle("light");
-    btnTheme.textContent=document.body.classList.contains("light") ? "Light Mode" : "Dark Mode";
-  };
+  btnTheme.onclick=()=>{ document.body.classList.toggle("light"); btnTheme.textContent=document.body.classList.contains("light") ? "Light Mode" : "Dark Mode"; };
 
   // Keyboard
   window.addEventListener('keydown',e=>{
@@ -301,24 +273,17 @@
     if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') setDir(-1,0);
     if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') setDir(1,0);
     if(e.key==='Escape') togglePause();
-    if((e.key==='r'||e.key==='R')){
-      if(!gameOver && !waitingStart){
-        showMessage("Reset game?",[
-          {label:"Yes", action:()=>{ reset(); waitingStart=false; hideMessage(); }},
-          {label:"No", action:()=>{ hideMessage(); }}
-        ]);
-      } else { reset(); waitingStart=false; hideMessage(); }
-    }
+    if((e.key==='r'||e.key==='R')){ if(!gameOver && !waitingStart){ showMessage("Reset game?",[{label:"Yes", action:()=>{ reset(); waitingStart=false; hideMessage(); }},{label:"No", action:()=>{ hideMessage(); }}]); } else { reset(); waitingStart=false; hideMessage(); }}
     if(e.key==='m'||e.key==='M'){ menuOverlay.style.display="block"; paused=true; }
-    if(e.key==='h'||e.key==='H'){ helpOverlay.style.display="block"; paused=true; }
+    if(e.key==='h'||e.key==='H'){ openHelp(); }
   });
 
   window.addEventListener('resize',resize);
-  if(isTouch) mobileControls.style.display="flex";
+  if(isTouch) mobileControls.style.display="flex"; else document.getElementById("top-bar").style.display="flex";
   resize(); reset();
   showMessage("Ready!",[{label:"Start",action:()=>{ reset(); waitingStart=false; hideMessage(); }}]);
   requestAnimationFrame(loop);
 })();
 </script>
 </body>
-    </html>
+        </html>
