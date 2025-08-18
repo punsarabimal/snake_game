@@ -6,223 +6,319 @@
 <title>Snake Game</title>
 <style>
   :root {
-    --ui-bg: rgba(0,0,0,0.6);
-    --control-size: 64px;
-    --accent: #4caf50;
-    --danger: #e53935;
+    --bg:#06121a;
+    --snake:#6aff6a;
+    --snake-body:#a6ff97;
+    --food:#ff5252;
+    --border:#00ffcc;
+    --ui-bg:rgba(0,0,0,0.6);
+    --text:#fff;
+  }
+  body.light {
+    --bg:#fefefe;
+    --snake:#007700;
+    --snake-body:#44cc44;
+    --food:#cc0000;
+    --border:#3333ff;
+    --ui-bg:rgba(200,200,200,0.8);
+    --text:#000;
   }
   html,body {
-    margin:0;
-    padding:0;
-    background:#0b0b0b;
-    color:#fff;
-    font-family:sans-serif;
-    height:100%;
-    display:flex;
-    flex-direction:column;
+    margin:0; padding:0; overflow:hidden;
+    background:var(--bg); color:var(--text);
+    font-family:sans-serif; height:100%; width:100%;
+    display:flex; flex-direction:column;
   }
   #game-container {
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    background:#06121a;
+    flex:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:var(--bg); position:relative;
+    width:100%; height:100%;
   }
   canvas {
-    display:block;
-    background:linear-gradient(180deg,#07121a,#06121a);
+    display:block; background:var(--bg);
     image-rendering:pixelated;
-    width:100%;
-    height:100%;
+    width:100%; height:100%;
   }
-  #topbar, #score {
-    position:absolute;
-    background:var(--ui-bg);
-    padding:8px 12px;
-    border-radius:8px;
-    backdrop-filter:blur(4px);
-    font-size:14px;
-  }
-  #topbar {
-    top:8px;
-    left:8px;
-    display:flex;
-    gap:8px;
-    align-items:center;
-  }
-  #score {
-    top:8px;
-    right:8px;
-  }
+
   #mobile-controls {
-    background:#111;
-    border-top:2px solid #333;
-    padding:10px;
-    display:none; /* shown on touch devices */
-    flex-direction:column;
-    align-items:center;
-    gap:10px;
-  }
-  .pad {
-    display:grid;
-    grid-template-columns: 1fr auto 1fr;
-    grid-template-rows: auto 1fr auto;
-    gap:8px;
-    align-items:center;
-    justify-items:center;
+    background:#111; border-top:2px solid #333; padding:12px;
+    display:none; flex-direction:column; align-items:center; gap:12px;
   }
   .arrow, .small-btn {
-    width:var(--control-size);
-    height:var(--control-size);
-    background:#222;
-    border:1px solid #555;
-    color:#fff;
-    font-size:24px;
-    border-radius:8px;
+    width:64px; height:64px;
+    background:#222; border:1px solid #555; color:#fff;
+    font-size:24px; border-radius:8px;
   }
-  .arrow:active, .small-btn:active {
-    background:#333;
+  .arrow:active, .small-btn:active { background:#333; }
+  .pad-plus { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .pad-plus .middle-row { display:flex; flex-direction:row; align-items:center; gap:8px; }
+  .bottom-bar { display:flex; justify-content:space-between; align-items:center; width:100%; padding:0 20px; margin-top:10px; }
+  .left-buttons { display:flex; gap:10px; }
+  .score-box { background:var(--ui-bg); padding:6px 12px; border-radius:6px; font-size:16px; }
+
+  #message, #menu-overlay, #help-overlay {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    text-align:center; font-size:18px; color:var(--text); background:var(--ui-bg);
+    padding:20px; border-radius:10px; display:none; z-index:20;
   }
-  #bottom-buttons {
-    display:flex;
-    gap:10px;
+  #message button, #menu-overlay button, #help-overlay button {
+    margin-top:12px; padding:8px 16px; font-size:16px;
+    border:none; border-radius:6px; background:#00cc66; color:#fff; cursor:pointer;
   }
+  #message button:active, #menu-overlay button:active, #help-overlay button:active { background:#00994d; }
+  #menu-overlay h2, #help-overlay h2 { margin:0 0 12px 0; }
+  #menu-overlay .menu-item { margin:12px 0; }
+  #menu-overlay input[type=range] { width:100%; }
+
+  #help-overlay { width:80%; max-width:400px; text-align:left; }
+  #help-overlay p { margin:10px 0; font-size:15px; }
 </style>
 </head>
 <body>
 <div id="game-container">
   <canvas id="game"></canvas>
-  <div id="topbar">
-    <label>Speed</label>
-    <input id="speed" type="range" min="1" max="20" value="8"/>
-    <span id="speedVal">8</span>
+  <div id="message">
+    <div id="message-text">Ready!</div>
+    <div id="message-buttons"></div>
   </div>
-  <div id="score">Score: <span id="scoreVal">0</span></div>
+  <div id="menu-overlay">
+    <h2>Game Settings</h2>
+    <div class="menu-item">
+      <label>Speed: <span id="speedVal">8</span></label><br>
+      <input id="speed" type="range" min="1" max="20" value="8"/>
+    </div>
+    <div class="menu-item">
+      <button id="btn-wrap">Wrap: OFF</button>
+    </div>
+    <div class="menu-item">
+      <button id="btn-theme">Dark Mode</button>
+    </div>
+    <button id="btn-close-menu">Close</button>
+  </div>
+  <div id="help-overlay">
+    <h2>How to Play</h2>
+    <p><b>PC Controls:</b><br>
+      Arrow Keys or W/A/S/D → Move<br>
+      ESC → Pause / Resume<br>
+      R → Reset<br>
+      M → Menu<br>
+      H → Help</p>
+    <p><b>Mobile Controls:</b><br>
+      Use on-screen arrow buttons to move<br>
+      ⏯ = Pause / Resume<br>
+      ⟲ = Reset<br>
+      ☰ = Menu<br>
+      ? = Help</p>
+    <p><b>Warp Mode:</b><br>
+      Snake passes through walls and reappears on the other side.</p>
+    <p><b>Dark/Light Mode:</b><br>
+      Switch game colors for your preference.</p>
+    <button id="btn-close-help">Close</button>
+  </div>
 </div>
 
+<!-- Mobile Controls -->
 <div id="mobile-controls">
-  <div class="pad">
-    <div></div>
-    <button class="arrow" data-dir="0,-1">▲</button>
-    <div></div>
-    <button class="arrow" data-dir="-1,0">◀</button>
-    <div></div>
-    <button class="arrow" data-dir="1,0">▶</button>
-    <div></div>
-    <button class="arrow" data-dir="0,1">▼</button>
-    <div></div>
+  <div class="pad-plus">
+    <button class="arrow up" data-dir="0,-1">▲</button>
+    <div class="middle-row">
+      <button class="arrow left" data-dir="-1,0">◀</button>
+      <button id="btn-menu" class="small-btn">☰</button>
+      <button class="arrow right" data-dir="1,0">▶</button>
+    </div>
+    <button class="arrow down" data-dir="0,1">▼</button>
   </div>
-  <div id="bottom-buttons">
-    <button id="btn-pause" class="small-btn">⏯</button>
-    <button id="btn-restart" class="small-btn">⟲</button>
+  <div class="bottom-bar">
+    <div class="left-buttons">
+      <button id="btn-pause" class="small-btn">⏯</button>
+      <button id="btn-restart" class="small-btn">⟲</button>
+      <button id="btn-help" class="small-btn">?</button>
+    </div>
+    <div class="score-box">
+      Score: <span id="scoreValMobile">0</span>
+    </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const cvs = document.getElementById('game');
-  const ctx = cvs.getContext('2d');
-  const speedInput = document.getElementById('speed');
-  const speedVal = document.getElementById('speedVal');
-  const scoreEl = document.getElementById('scoreVal');
-  const mobileControls = document.getElementById('mobile-controls');
-  const btnPause = document.getElementById('btn-pause');
-  const btnRestart = document.getElementById('btn-restart');
-  const arrows = mobileControls.querySelectorAll('.arrow');
-  let isTouch = 'ontouchstart' in window;
+  const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
+  const mobileControls=document.getElementById('mobile-controls');
+  const arrows=mobileControls.querySelectorAll('.arrow');
+  const msgEl=document.getElementById('message'), msgText=document.getElementById('message-text'), msgBtns=document.getElementById('message-buttons');
+  const btnPause=document.getElementById('btn-pause'), btnRestart=document.getElementById('btn-restart');
+  const btnMenu=document.getElementById('btn-menu'), menuOverlay=document.getElementById('menu-overlay');
+  const btnWrap=document.getElementById('btn-wrap'), btnTheme=document.getElementById('btn-theme'), btnCloseMenu=document.getElementById('btn-close-menu');
+  const btnHelp=document.getElementById('btn-help'), helpOverlay=document.getElementById('help-overlay'), btnCloseHelp=document.getElementById('btn-close-help');
+  const speedInput=document.getElementById('speed'), speedVal=document.getElementById('speedVal');
+  let isTouch='ontouchstart' in window;
 
-  let cellSize = 20, cols, rows;
-  let snake = [];
-  let dir = {x:1,y:0}, nextDir = {x:1,y:0};
-  let food = null;
-  let score = 0;
-  let paused = false, gameOver = false;
-  let movesPerSecond = +speedInput.value, acc=0, moveInterval=1000/movesPerSecond;
-  let lastTime = 0;
+  let cellSize=20, cols, rows;
+  const offsetX=7, offsetY=0;
+  let snake=[], dir={x:1,y:0}, nextDir={x:1,y:0};
+  let food=null, score=0;
+  let paused=false, gameOver=false, waitingStart=true, waitingMove=false;
+  let startedMoving=false;
+  let wrapMode=false;
+  let movesPerSecond=+speedInput.value, acc=0, moveInterval=1000/movesPerSecond;
+  let lastTime=0;
 
-  function resize(){
-    let h = window.innerHeight;
-    if(isTouch) h -= mobileControls.offsetHeight;
-    cvs.width = window.innerWidth;
-    cvs.height = h;
-    cols = Math.floor(cvs.width/cellSize);
-    rows = Math.floor(cvs.height/cellSize);
+  function resize(){ 
+    let h=window.innerHeight; 
+    if(isTouch) h-=mobileControls.offsetHeight; 
+    cvs.width=window.innerWidth; 
+    cvs.height=h; 
+    cols=Math.floor(cvs.width/cellSize); 
+    rows=Math.floor(cvs.height/cellSize); 
   }
-  function reset(){
-    snake = [];
-    let startX = Math.floor(cols/2);
-    let startY = Math.floor(rows/2);
-    for(let i=4;i>0;i--) snake.push({x:startX-i,y:startY});
-    dir={x:1,y:0}; nextDir={x:1,y:0};
-    placeFood();
-    score=0; paused=false; gameOver=false;
-    updateScore();
+
+  function reset(){ 
+    snake=[]; 
+    let startX=Math.floor(cols/2), startY=Math.floor(rows/2); 
+    for(let i=4;i>0;i--) snake.push({x:startX-i,y:startY}); 
+    dir={x:1,y:0}; 
+    nextDir={x:1,y:0};
+    placeFood(); 
+    score=0; paused=false; gameOver=false; waitingMove=true; 
+    startedMoving=false; 
+    updateScore(); 
   }
-  function placeFood(){
-    while(true){
-      let fx=Math.floor(Math.random()*cols), fy=Math.floor(Math.random()*rows);
-      if(!snake.some(s=>s.x===fx&&s.y===fy)){ food={x:fx,y:fy}; return; }
+
+  function placeFood(){ 
+    while(true){ 
+      let fx=Math.floor(Math.random()*cols), fy=Math.floor(Math.random()*rows); 
+      if(!snake.some(s=>s.x===fx&&s.y===fy)){ food={x:fx,y:fy}; return; } 
+    } 
+  }
+
+  function setDir(x,y){ 
+    if(waitingMove){ waitingMove=false; }
+    if(!startedMoving){
+      if(x===-1 && y===0) return; // ignore left at start
+    } else {
+      if(snake.length>1 && x===-dir.x && y===-dir.y) return;
     }
-  }
-  function setDir(x,y){
-    if(snake.length>1 && x===-dir.x && y===-dir.y) return;
     nextDir={x,y};
   }
-  function step(){
-    if(paused||gameOver) return;
-    dir=nextDir;
-    let head=snake[snake.length-1];
+
+  function showMessage(text, buttons){ 
+    msgText.textContent=text; 
+    msgBtns.innerHTML=""; 
+    buttons.forEach(b=>{ 
+      let btn=document.createElement("button"); 
+      btn.textContent=b.label; 
+      btn.onclick=b.action; 
+      msgBtns.appendChild(btn); 
+    }); 
+    msgEl.style.display="block"; 
+  }
+  function hideMessage(){ msgEl.style.display="none"; }
+
+  function step(){ 
+    if(paused||gameOver||waitingStart||waitingMove) return; 
+    dir=nextDir; 
+    startedMoving = true; 
+    let head=snake[snake.length-1]; 
     let nx=head.x+dir.x, ny=head.y+dir.y;
-    if(nx<0||ny<0||nx>=cols||ny>=rows||snake.some(s=>s.x===nx&&s.y===ny)){
-      gameOver=true; return;
+    if(wrapMode){ 
+      if(nx<0) nx=cols-1; if(nx>=cols) nx=0; 
+      if(ny<0) ny=rows-1; if(ny>=rows) ny=0; 
+    } else { 
+      if(nx<0||ny<0||nx>=cols||ny>=rows){ 
+        gameOver=true; 
+        showMessage("Game Over!",[{label:"Restart",action:()=>{ reset(); waitingStart=false; gameOver=false; hideMessage(); }}]); 
+        return; 
+      } 
     }
-    snake.push({x:nx,y:ny});
-    if(nx===food.x&&ny===food.y){
-      score++; updateScore(); placeFood();
-    } else snake.shift();
+    if(snake.some(s=>s.x===nx&&s.y===ny)){ 
+      gameOver=true; 
+      showMessage("Game Over!",[{label:"Restart",action:()=>{ reset(); waitingStart=false; gameOver=false; hideMessage(); }}]); 
+      return; 
+    }
+    snake.push({x:nx,y:ny}); 
+    if(nx===food.x&&ny===food.y){ score++; updateScore(); placeFood(); } 
+    else snake.shift();
   }
-  function draw(){
-    ctx.fillStyle="#06121a";
+
+  function draw(){ 
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--bg"); 
     ctx.fillRect(0,0,cvs.width,cvs.height);
-    ctx.fillStyle="#ff5252";
-    ctx.fillRect(food.x*cellSize,food.y*cellSize,cellSize,cellSize);
-    ctx.fillStyle="#a6ff97";
-    snake.forEach(s=>ctx.fillRect(s.x*cellSize,s.y*cellSize,cellSize,cellSize));
-  }
-  function loop(t){
-    requestAnimationFrame(loop);
-    let dt=t-lastTime; lastTime=t; acc+=dt;
-    moveInterval=1000/movesPerSecond;
-    while(acc>=moveInterval){ step(); acc-=moveInterval; }
-    draw();
-  }
-  function updateScore(){ scoreEl.textContent=score; }
-  function togglePause(){ if(!gameOver) paused=!paused; }
-  speedInput.oninput = ()=>{ movesPerSecond=+speedInput.value; speedVal.textContent=movesPerSecond; };
-
-  arrows.forEach(b=>{
-    b.addEventListener('click',()=> {
-      let [x,y]=b.dataset.dir.split(',').map(Number);
-      setDir(x,y);
+    ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue("--border"); 
+    ctx.lineWidth=2; 
+    ctx.strokeRect(offsetX+0.5,offsetY+0.5,cols*cellSize-1,rows*cellSize-1);
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue("--food"); 
+    ctx.fillRect(offsetX+food.x*cellSize, offsetY+food.y*cellSize, cellSize, cellSize);
+    snake.forEach((s,i)=>{ 
+      ctx.fillStyle=(i===snake.length-1)?getComputedStyle(document.body).getPropertyValue("--snake"):getComputedStyle(document.body).getPropertyValue("--snake-body"); 
+      ctx.fillRect(offsetX+s.x*cellSize, offsetY+s.y*cellSize, cellSize, cellSize); 
     });
-  });
+  }
+
+  function loop(t){ 
+    requestAnimationFrame(loop); 
+    let dt=t-lastTime; lastTime=t; acc+=dt; 
+    moveInterval=1000/movesPerSecond; 
+    while(acc>=moveInterval){ step(); acc-=moveInterval; } 
+    draw(); 
+  }
+
+  function updateScore(){ 
+    let m=document.getElementById("scoreValMobile"); 
+    if(m) m.textContent=score; 
+  }
+  function togglePause(){ if(!gameOver && !waitingStart) paused=!paused; }
+
+  // Controls
+  arrows.forEach(b=>b.addEventListener('click',()=>{ let [x,y]=b.dataset.dir.split(',').map(Number); setDir(x,y); }));
   btnPause.onclick=togglePause;
-  btnRestart.onclick=reset;
+  btnRestart.onclick=()=>{
+    if(!gameOver && !waitingStart){
+      showMessage("Reset game?",[
+        {label:"Yes", action:()=>{ reset(); waitingStart=false; hideMessage(); }},
+        {label:"No", action:()=>{ hideMessage(); }}
+      ]);
+    } else { reset(); waitingStart=false; hideMessage(); }
+  };
+  btnMenu.onclick=()=>{ menuOverlay.style.display="block"; paused=true; };
+  btnCloseMenu.onclick=()=>{ menuOverlay.style.display="none"; paused=false; };
 
+  btnHelp.onclick=()=>{ helpOverlay.style.display="block"; paused=true; };
+  btnCloseHelp.onclick=()=>{ helpOverlay.style.display="none"; paused=false; };
+
+  // Menu actions
+  speedInput.oninput=()=>{ movesPerSecond=+speedInput.value; speedVal.textContent=movesPerSecond; };
+  btnWrap.onclick=()=>{ wrapMode=!wrapMode; btnWrap.textContent="Wrap: "+(wrapMode?"ON":"OFF"); };
+  btnTheme.onclick=()=>{
+    document.body.classList.toggle("light");
+    btnTheme.textContent=document.body.classList.contains("light") ? "Light Mode" : "Dark Mode";
+  };
+
+  // Keyboard
   window.addEventListener('keydown',e=>{
-    if(e.key==='ArrowUp') setDir(0,-1);
-    if(e.key==='ArrowDown') setDir(0,1);
-    if(e.key==='ArrowLeft') setDir(-1,0);
-    if(e.key==='ArrowRight') setDir(1,0);
+    if(e.key==='ArrowUp'||e.key==='w'||e.key==='W') setDir(0,-1);
+    if(e.key==='ArrowDown'||e.key==='s'||e.key==='S') setDir(0,1);
+    if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') setDir(-1,0);
+    if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') setDir(1,0);
     if(e.key==='Escape') togglePause();
-    if(e.key==='Enter') reset();
+    if((e.key==='r'||e.key==='R')){
+      if(!gameOver && !waitingStart){
+        showMessage("Reset game?",[
+          {label:"Yes", action:()=>{ reset(); waitingStart=false; hideMessage(); }},
+          {label:"No", action:()=>{ hideMessage(); }}
+        ]);
+      } else { reset(); waitingStart=false; hideMessage(); }
+    }
+    if(e.key==='m'||e.key==='M'){ menuOverlay.style.display="block"; paused=true; }
+    if(e.key==='h'||e.key==='H'){ helpOverlay.style.display="block"; paused=true; }
   });
-  window.addEventListener('resize',resize);
 
+  window.addEventListener('resize',resize);
   if(isTouch) mobileControls.style.display="flex";
-  resize(); reset(); requestAnimationFrame(loop);
+  resize(); reset();
+  showMessage("Ready!",[{label:"Start",action:()=>{ reset(); waitingStart=false; hideMessage(); }}]);
+  requestAnimationFrame(loop);
 })();
 </script>
 </body>
-</html>
+    </html>
