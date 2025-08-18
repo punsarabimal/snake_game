@@ -29,6 +29,20 @@
     font-family:sans-serif; height:100%; width:100%;
     display:flex; flex-direction:column;
   }
+
+  /* TOP BAR (always visible on PC & Mobile) */
+  #top-bar {
+    display:flex; justify-content:flex-end; align-items:center;
+    background:var(--ui-bg); padding:8px 16px;
+    gap:12px; font-size:16px;
+  }
+  #top-bar .small-btn {
+    width:32px; height:32px; font-size:16px;
+    background:#222; border:1px solid #555; color:#fff; border-radius:6px;
+  }
+  .score-box { background:var(--ui-bg); padding:6px 12px; border-radius:6px; font-size:16px; }
+
+  /* GAME CONTAINER */
   #game-container {
     flex:1; display:flex; flex-direction:column;
     align-items:center; justify-content:center;
@@ -41,18 +55,7 @@
     width:100%; height:100%;
   }
 
-  /* TOP BAR for PC */
-  #top-bar {
-    display:flex; justify-content:flex-end; align-items:center;
-    background:var(--ui-bg); padding:8px 16px;
-    gap:12px; font-size:16px;
-  }
-  #top-bar .small-btn {
-    width:32px; height:32px; font-size:16px;
-    background:#222; border:1px solid #555; color:#fff; border-radius:6px;
-  }
-
-  /* MOBILE CONTROLS */
+  /* MOBILE CONTROLS (arrows + pause/reset/menu only) */
   #mobile-controls {
     background:#111; border-top:2px solid #333; padding:12px;
     display:none; flex-direction:column; align-items:center; gap:12px;
@@ -65,9 +68,8 @@
   .arrow:active, .small-btn:active { background:#333; }
   .pad-plus { display:flex; flex-direction:column; align-items:center; gap:8px; }
   .pad-plus .middle-row { display:flex; flex-direction:row; align-items:center; gap:8px; }
-  .bottom-bar { display:flex; justify-content:space-between; align-items:center; width:100%; padding:0 20px; margin-top:10px; }
-  .left-buttons { display:flex; gap:10px; }
-  .score-box { background:var(--ui-bg); padding:6px 12px; border-radius:6px; font-size:16px; }
+  .bottom-bar { display:flex; justify-content:flex-start; align-items:center; width:100%; gap:10px; margin-top:10px; }
+  .bottom-bar .small-btn { width:48px; height:48px; font-size:20px; }
 
   /* OVERLAYS */
   #message, #menu-overlay, #help-overlay {
@@ -89,10 +91,11 @@
 </style>
 </head>
 <body>
-<!-- PC TOP BAR -->
+
+<!-- SCORE + HELP ALWAYS ABOVE -->
 <div id="top-bar">
-  <div class="score-box">Score: <span id="scoreValPC">0</span></div>
-  <button id="btn-help-pc" class="small-btn">?</button>
+  <div class="score-box">Score: <span id="scoreVal">0</span></div>
+  <button id="btn-help" class="small-btn">?</button>
 </div>
 
 <div id="game-container">
@@ -107,12 +110,8 @@
       <label>Speed: <span id="speedVal">8</span></label><br>
       <input id="speed" type="range" min="1" max="20" value="8"/>
     </div>
-    <div class="menu-item">
-      <button id="btn-wrap">Wrap: OFF</button>
-    </div>
-    <div class="menu-item">
-      <button id="btn-theme">Dark Mode</button>
-    </div>
+    <div class="menu-item"><button id="btn-wrap">Wrap: OFF</button></div>
+    <div class="menu-item"><button id="btn-theme">Dark Mode</button></div>
     <button id="btn-close-menu">Close</button>
   </div>
   <div id="help-overlay">
@@ -149,14 +148,8 @@
     <button class="arrow down" data-dir="0,1">▼</button>
   </div>
   <div class="bottom-bar">
-    <div class="left-buttons">
-      <button id="btn-pause" class="small-btn">⏯</button>
-      <button id="btn-restart" class="small-btn">⟲</button>
-      <button id="btn-help-mobile" class="small-btn">?</button>
-    </div>
-    <div class="score-box">
-      Score: <span id="scoreValMobile">0</span>
-    </div>
+    <button id="btn-pause" class="small-btn">⏯</button>
+    <button id="btn-restart" class="small-btn">⟲</button>
   </div>
 </div>
 
@@ -168,10 +161,8 @@
   const btnPause=document.getElementById('btn-pause'), btnRestart=document.getElementById('btn-restart');
   const btnMenu=document.getElementById('btn-menu'), menuOverlay=document.getElementById('menu-overlay');
   const btnWrap=document.getElementById('btn-wrap'), btnTheme=document.getElementById('btn-theme'), btnCloseMenu=document.getElementById('btn-close-menu');
-  const btnHelpMobile=document.getElementById('btn-help-mobile');
-  const btnHelpPC=document.getElementById('btn-help-pc');
-  const helpOverlay=document.getElementById('help-overlay'), btnCloseHelp=document.getElementById('btn-close-help');
-  const scorePC=document.getElementById('scoreValPC'), scoreMobile=document.getElementById('scoreValMobile');
+  const btnHelp=document.getElementById('btn-help'), helpOverlay=document.getElementById('help-overlay'), btnCloseHelp=document.getElementById('btn-close-help');
+  const scoreEl=document.getElementById('scoreVal');
   const speedInput=document.getElementById('speed'), speedVal=document.getElementById('speedVal');
   let isTouch='ontouchstart' in window;
 
@@ -195,19 +186,14 @@
   }
 
   function reset(){ 
-    snake=[]; 
-    let startX=Math.floor(cols/2), startY=Math.floor(rows/2); 
+    snake=[]; let startX=Math.floor(cols/2), startY=Math.floor(rows/2); 
     for(let i=4;i>0;i--) snake.push({x:startX-i,y:startY}); 
     dir={x:1,y:0}; nextDir={x:1,y:0};
-    placeFood(); score=0; paused=false; gameOver=false; waitingMove=true; 
-    startedMoving=false; updateScore(); 
+    placeFood(); score=0; paused=false; gameOver=false; waitingMove=true; startedMoving=false; updateScore(); 
   }
 
   function placeFood(){ 
-    while(true){ 
-      let fx=Math.floor(Math.random()*cols), fy=Math.floor(Math.random()*rows); 
-      if(!snake.some(s=>s.x===fx&&s.y===fy)){ food={x:fx,y:fy}; return; } 
-    } 
+    while(true){ let fx=Math.floor(Math.random()*cols), fy=Math.floor(Math.random()*rows); if(!snake.some(s=>s.x===fx&&s.y===fy)){ food={x:fx,y:fy}; return; } } 
   }
 
   function setDir(x,y){ 
@@ -246,7 +232,7 @@
 
   function loop(t){ requestAnimationFrame(loop); let dt=t-lastTime; lastTime=t; acc+=dt; moveInterval=1000/movesPerSecond; while(acc>=moveInterval){ step(); acc-=moveInterval; } draw(); }
 
-  function updateScore(){ scorePC.textContent=score; scoreMobile.textContent=score; }
+  function updateScore(){ scoreEl.textContent=score; }
   function togglePause(){ if(!gameOver && !waitingStart) paused=!paused; }
 
   // Mobile controls
@@ -257,9 +243,8 @@
   btnCloseMenu.onclick=()=>{ menuOverlay.style.display="none"; paused=false; };
 
   // Help
-  function openHelp(){ helpOverlay.style.display="block"; paused=true; }
-  function closeHelp(){ helpOverlay.style.display="none"; paused=false; }
-  btnHelpMobile.onclick=openHelp; btnHelpPC.onclick=openHelp; btnCloseHelp.onclick=closeHelp;
+  btnHelp.onclick=()=>{ helpOverlay.style.display="block"; paused=true; };
+  btnCloseHelp.onclick=()=>{ helpOverlay.style.display="none"; paused=false; };
 
   // Menu actions
   speedInput.oninput=()=>{ movesPerSecond=+speedInput.value; speedVal.textContent=movesPerSecond; };
@@ -275,15 +260,15 @@
     if(e.key==='Escape') togglePause();
     if((e.key==='r'||e.key==='R')){ if(!gameOver && !waitingStart){ showMessage("Reset game?",[{label:"Yes", action:()=>{ reset(); waitingStart=false; hideMessage(); }},{label:"No", action:()=>{ hideMessage(); }}]); } else { reset(); waitingStart=false; hideMessage(); }}
     if(e.key==='m'||e.key==='M'){ menuOverlay.style.display="block"; paused=true; }
-    if(e.key==='h'||e.key==='H'){ openHelp(); }
+    if(e.key==='h'||e.key==='H'){ helpOverlay.style.display="block"; paused=true; }
   });
 
   window.addEventListener('resize',resize);
-  if(isTouch) mobileControls.style.display="flex"; else document.getElementById("top-bar").style.display="flex";
+  if(isTouch) mobileControls.style.display="flex";
   resize(); reset();
   showMessage("Ready!",[{label:"Start",action:()=>{ reset(); waitingStart=false; hideMessage(); }}]);
   requestAnimationFrame(loop);
 })();
 </script>
 </body>
-        </html>
+  </html>
